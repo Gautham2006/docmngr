@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Marvin the Orb</title>
+    <style>
+        body {
+            margin: 0;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background-color: #000000;
+            color: white;
+            font-family: 'Orbitron', sans-serif;
+        }
+
+        .container {
+            position: relative;
+            text-align: center;
+        }
+
+        .orb {
+            width: 200px;
+            height: 200px;
+            background: linear-gradient(45deg, #8A2BE2, #00FFFF);
+            border-radius: 50%;
+            box-shadow: 0 0 30px rgba(138, 43, 226, 0.9), 0 0 60px rgba(0, 255, 255, 0.9);
+            animation: float 3s ease-in-out infinite;
+        }
+
+        .name-tag {
+            position: absolute;
+            top: -70px;  /* Adjusted to avoid collision with the orb */
+            left: 50%;
+            transform: translateX(-50%);
+            color: #00FFFF;
+            font-size: 28px;
+            text-shadow: 0 0 10px #00FFFF, 0 0 20px #00FFFF;
+        }
+
+        .vibrating {
+            animation: vibrate 0.2s linear infinite;
+        }
+
+        @keyframes float {
+            0%,
+            100% {
+                transform: translateY(0);
+            }
+            50% {
+                transform: translateY(-20px);
+            }
+        }
+
+        @keyframes vibrate {
+            0%, 100% {
+                transform: translate(0, 0);
+            }
+            25% {
+                transform: translate(2px, 2px);
+            }
+            50% {
+                transform: translate(-2px, -2px);
+            }
+            75% {
+                transform: translate(2px, -2px);
+            }
+        }
+
+        button {
+            margin-top: 20px;
+            padding: 10px 20px;
+            font-size: 16px;
+            color: #00FFFF;
+            background-color: #000000;
+            border: 1px solid #00FFFF;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        button:disabled {
+            background-color: grey;
+            color: darkgrey;
+            cursor: not-allowed;
+        }
+
+        button:hover:enabled {
+            background-color: #00FFFF;
+            color: #000000;
+        }
+
+        #response {
+            margin-top: 20px;
+        }
+    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
+</head>
+
+<body>
+    <div class="container">
+        <div class="orb" id="orb"></div>
+        <div class="name-tag">Marvin</div>
+    </div>
+    <button id="callButton">📞</button>
+    <button id="muteButton">Mute</button>
+    <button id="unmuteButton">Unmute</button>
+    <div id="response"></div>
+
+    <script>
+        let aiSpeaking = false;
+        let callActive = false;
+        let audio = null;
+
+        document.getElementById('callButton').addEventListener('click', function() {
+            const callButton = document.getElementById('callButton');
+            const orb = document.getElementById('orb');
+            
+            if (!callActive) {
+                // Start the call
+                callButton.textContent = "End Call";
+                callActive = true;
+                aiSpeaking = true;
+                startAiSpeaking();
+            } else {
+                // End the call
+                callButton.textContent = "📞";
+                callActive = false;
+                aiSpeaking = false;
+                if (audio) {
+                    audio.pause();
+                    audio.currentTime = 0;
+                    audio = null;
+                }
+                orb.classList.remove('floating', 'vibrating');
+                document.getElementById('response').innerText = "Call ended.";
+            }
+        });
+
+        function startAiSpeaking() {
+            fetch('/ai_speak', { method: 'POST' })
+                .then(response => response.json())
+                .then(data => {
+                    audio = new Audio(data.response);
+                    audio.play();
+                    const orb = document.getElementById('orb');
+                    orb.classList.add('floating');
+                    orb.classList.add('vibrating');
+                    audio.onended = function() {
+                        aiSpeaking = false;
+                        orb.classList.remove('floating', 'vibrating');
+                    };
+                    aiSpeaking = true;
+                });
+        }
+
+        document.getElementById('muteButton').addEventListener('click', function() {
+            fetch('/mute', { method: 'POST' })
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('response').innerText = data.status;
+                });
+        });
+
+        document.getElementById('unmuteButton').addEventListener('click', function() {
+            fetch('/unmute', { method: 'POST' })
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('response').innerText = data.status;
+                });
+        });
+
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'p' && callActive && !aiSpeaking) {
+                startAiSpeaking();
+            }
+        });
+    </script>
+</body>
+
+</html>
